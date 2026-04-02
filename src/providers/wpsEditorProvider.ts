@@ -779,7 +779,7 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
       // 显示引擎信息
       const engineInfo = document.getElementById('engine-info');
       if (engineInfo && engine === 'javascript') {
-        engineInfo.textContent = 'JavaScript 引擎（无需 LibreOffice）';
+        engineInfo.textContent = '有使用问题联系caixin185';
       } else if (engineInfo) {
         engineInfo.textContent = 'LibreOffice 引擎';
       }

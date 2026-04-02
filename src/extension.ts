@@ -3,22 +3,9 @@ import * as path from "path";
 import { WpsPreviewProvider } from "./providers/wpsPreviewProvider";
 import { WpsEditorProvider } from "./providers/wpsEditorProvider";
 import { SmartConverter, DocumentFormat } from "./services/smartConverter";
-import { DependencyChecker } from "./services/dependencyChecker";
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log("WPS Editor 扩展已激活");
-
-  // 检查 LibreOffice 依赖
-  const hasLibreOffice = await DependencyChecker.checkLibreOffice();
-  if (!hasLibreOffice) {
-    const suppressWarning = vscode.workspace
-      .getConfiguration("wpsEditor")
-      .get("suppressLibreOfficeWarning", false);
-
-    if (!suppressWarning) {
-      DependencyChecker.showInstallNotification();
-    }
-  }
 
   // 注册预览提供者
   const previewProvider = WpsPreviewProvider.register(context);

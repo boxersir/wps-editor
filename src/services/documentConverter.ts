@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import * as libreoffice from "libreoffice-convert";
-import { DependencyChecker } from "./dependencyChecker";
 
 // 包装 libreoffice convert 函数以支持 Promise
 function convertAsync(document: Buffer, format: string): Promise<Buffer> {
@@ -79,42 +78,11 @@ export class DocumentConverter {
     outputPath?: string,
   ): Promise<ConversionResult> {
     try {
-      // 检查 LibreOffice 是否可用
-      const hasLibreOffice = await DependencyChecker.checkLibreOffice();
-      if (!hasLibreOffice) {
-        DependencyChecker.showConversionError();
-        return {
-          success: false,
-          error: "未找到 LibreOffice，无法进行文档转换",
-        };
-      }
-
-      const buffer = fs.readFileSync(inputPath);
-
-      const pdfBuffer = await convertAsync(buffer, ".pdf");
-
-      if (outputPath) {
-        fs.writeFileSync(outputPath, new Uint8Array(pdfBuffer));
-        return {
-          success: true,
-          outputPath,
-        };
-      }
-
       return {
-        success: true,
-        outputBuffer: pdfBuffer,
+        success: false,
+        error: "PDF 转换需要 LibreOffice 支持",
       };
     } catch (error: any) {
-      // 检查是否是 LibreOffice 相关错误
-      if (error.message && error.message.includes("soffice")) {
-        DependencyChecker.showConversionError();
-        return {
-          success: false,
-          error: "未找到 LibreOffice，请先安装 LibreOffice",
-        };
-      }
-
       return {
         success: false,
         error: error.message || "Conversion failed",
@@ -130,47 +98,11 @@ export class DocumentConverter {
     outputPath?: string,
   ): Promise<ConversionResult> {
     try {
-      // 检查 LibreOffice 是否可用
-      const hasLibreOffice = await DependencyChecker.checkLibreOffice();
-      if (!hasLibreOffice) {
-        DependencyChecker.showConversionError();
-        return {
-          success: false,
-          error: "未找到 LibreOffice，无法进行文档转换",
-        };
-      }
-
-      const buffer = fs.readFileSync(inputPath);
-
-      const htmlBuffer = await convertAsync(buffer, ".html");
-
-      if (outputPath) {
-        // 确保输出目录存在
-        const dir = path.dirname(outputPath);
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        fs.writeFileSync(outputPath, new Uint8Array(htmlBuffer));
-        return {
-          success: true,
-          outputPath,
-        };
-      }
-
       return {
-        success: true,
-        outputBuffer: htmlBuffer,
+        success: false,
+        error: "HTML 转换需要 LibreOffice 支持",
       };
     } catch (error: any) {
-      // 检查是否是 LibreOffice 相关错误
-      if (error.message && error.message.includes("soffice")) {
-        DependencyChecker.showConversionError();
-        return {
-          success: false,
-          error: "未找到 LibreOffice，请先安装 LibreOffice",
-        };
-      }
-
       return {
         success: false,
         error: error.message || "Conversion failed",

@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as libreoffice from "libreoffice-convert";
 import { OfficeConverter } from "./officeConverter";
-import { DependencyChecker } from "./dependencyChecker";
 
 // 包装 libreoffice convert 函数以支持 Promise
 function convertAsync(document: Buffer, format: string): Promise<Buffer> {
@@ -156,42 +155,15 @@ export class SmartConverter {
     outputPath?: string,
   ): Promise<ConversionResult> {
     try {
-      // 检查 LibreOffice 是否可用
-      const hasLibreOffice = await DependencyChecker.checkLibreOffice();
-      if (!hasLibreOffice) {
-        const format = this.detectFormat(inputPath);
-        if (format && OfficeConverter.isSupportedOfficeFormat(format)) {
-          // 如果是 Office 格式，尝试使用 JavaScript 库
-          return await this.convertWithJavaScript(
-            inputPath,
-            format,
-            outputPath,
-          );
-        }
-
-        DependencyChecker.showConversionError();
-        return {
-          success: false,
-          error: "未找到 LibreOffice，无法进行文档转换",
-          engine: "libreoffice",
-        };
-      }
-
-      const buffer = fs.readFileSync(inputPath);
-      const outputBuffer = await convertAsync(buffer, outputFormat);
-
-      if (outputPath) {
-        fs.writeFileSync(outputPath, new Uint8Array(outputBuffer));
-        return {
-          success: true,
-          outputPath,
-          engine: "libreoffice",
-        };
+      const format = this.detectFormat(inputPath);
+      if (format && OfficeConverter.isSupportedOfficeFormat(format)) {
+        // 如果是 Office 格式，尝试使用 JavaScript 库
+        return await this.convertWithJavaScript(inputPath, format, outputPath);
       }
 
       return {
-        success: true,
-        outputBuffer,
+        success: false,
+        error: "此格式需要 LibreOffice 支持",
         engine: "libreoffice",
       };
     } catch (error: any) {
@@ -207,10 +179,9 @@ export class SmartConverter {
           );
         }
 
-        DependencyChecker.showConversionError();
         return {
           success: false,
-          error: "未找到 LibreOffice，请先安装 LibreOffice",
+          error: "此格式需要 LibreOffice 支持",
           engine: "libreoffice",
         };
       }
