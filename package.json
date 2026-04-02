@@ -1,0 +1,127 @@
+{
+  "name": "wps-editor",
+  "displayName": "WPS Editor",
+  "description": "Preview and edit WPS documents (.wps, .et, .dps) in VSCode",
+  "version": "1.0.0",
+  "publisher": "wps-editor",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "wps",
+    "office",
+    "document",
+    "editor",
+    "preview",
+    "pdf",
+    "word",
+    "excel",
+    "powerpoint",
+    "libreoffice"
+  ],
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wps-editor/wps-editor"
+  },
+  "homepage": "https://github.com/wps-editor/wps-editor#readme",
+  "bugs": {
+    "url": "https://github.com/wps-editor/wps-editor/issues",
+    "email": "support@wps-editor.com"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "activationEvents": [
+    "onLanguage:wps",
+    "onLanguage:et",
+    "onLanguage:dps",
+    "onCustomEditor:wpsEditor.preview"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "wpsEditor.preview",
+        "displayName": "WPS Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.wps"
+          },
+          {
+            "filenamePattern": "*.et"
+          },
+          {
+            "filenamePattern": "*.dps"
+          },
+          {
+            "filenamePattern": "*.doc"
+          },
+          {
+            "filenamePattern": "*.docx"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "wpsEditor.openPreview",
+        "title": "Open WPS Preview",
+        "category": "WPS Editor"
+      },
+      {
+        "command": "wpsEditor.convertToPDF",
+        "title": "Convert to PDF",
+        "category": "WPS Editor"
+      }
+    ],
+    "configuration": {
+      "title": "WPS Editor",
+      "properties": {
+        "wpsEditor.libreOfficePath": {
+          "type": "string",
+          "default": "",
+          "description": "LibreOffice 可执行文件的自定义路径（留空自动检测）"
+        },
+        "wpsEditor.autoPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "打开 WPS 文档时自动预览"
+        },
+        "wpsEditor.suppressLibreOfficeWarning": {
+          "type": "boolean",
+          "default": false,
+          "description": "不显示 LibreOffice 未安装警告"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "validate": "vsce ls"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.110.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "axios": "^1.14.0",
+    "exceljs": "^4.4.0",
+    "libreoffice-convert": "^1.8.1",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^5.6.205"
+  }
+}

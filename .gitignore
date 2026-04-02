@@ -1,0 +1,7 @@
+out/
+node_modules/
+.vscode-test/
+*.vsix
+.wps-editor-temp/
+*.log
+.DS_Store
