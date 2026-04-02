@@ -91,24 +91,45 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
       console.log("加载文档:", filePath, "格式:", format);
     }
 
-    // 转换为 HTML 用于编辑
-    const result = await this.converter.convertToHTML(filePath);
+    try {
+      // 转换为 HTML 用于编辑
+      const result = await this.converter.convertToHTML(filePath);
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("转换结果:", result);
-    }
+      if (process.env.NODE_ENV === "development") {
+        console.log("转换结果:", result);
+      }
 
-    if (result.success && result.output) {
-      webview.postMessage({
-        type: "html",
-        data: result.output,
-        format: format,
-        engine: result.engine,
-      });
-    } else {
+      if (result.success && result.output) {
+        console.log("发送 HTML 消息到 Webview");
+        console.log("HTML 内容长度:", result.output.length);
+        console.log("Webview 状态:", webview);
+
+        // 延迟发送消息，确保 Webview 已准备就绪
+        setTimeout(() => {
+          console.log("延迟发送消息");
+          webview.postMessage({
+            type: "html",
+            data: result.output,
+            format: format,
+            engine: result.engine,
+          });
+          console.log("消息已发送");
+        }, 100);
+      } else {
+        console.log("发送错误消息到 Webview");
+        webview.postMessage({
+          type: "error",
+          message: result.error || "加载文档失败",
+        });
+      }
+    } catch (error: any) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("加载文档出错:", error);
+      }
+      console.log("发送错误消息到 Webview (异常)");
       webview.postMessage({
         type: "error",
-        message: result.error || "加载文档失败",
+        message: error.message || "加载文档时发生错误",
       });
     }
   }
@@ -545,373 +566,245 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
   </div>
   
   <script>
-    const vscode = acquireVsCodeApi();
+    // 立即执行脚本
+    console.log('=== Webview 脚本开始执行 ===');
     
-    let currentPage = 1;
-    let totalPages = 1;
-    let currentFormat = '';
-    let editor = null;
-    
-    // 确保 DOM 加载完成
-    function initEditor() {
-      editor = document.getElementById('editor');
-      if (!editor) {
-        console.error('编辑器元素未找到');
-        setTimeout(initEditor, 100);
-        return;
+    // 确保 acquireVsCodeApi 可用
+    if (typeof acquireVsCodeApi === 'undefined') {
+      console.error('acquireVsCodeApi 未定义');
+    } else {
+      console.log('acquireVsCodeApi 可用');
+      const vscode = acquireVsCodeApi();
+      console.log('acquireVsCodeApi 成功:', vscode);
+      
+      // 全局变量
+      let currentPage = 1;
+      let totalPages = 1;
+      let currentFormat = '';
+      let editor = null;
+      let isEditorInitialized = false;
+      let pendingMessages = [];
+      
+      console.log('初始化变量完成');
+      
+      // 初始化编辑器
+      function initEditor() {
+        console.log('=== initEditor 被调用 ===');
+        editor = document.getElementById('editor');
+        if (!editor) {
+          console.error('编辑器元素未找到');
+          setTimeout(initEditor, 100);
+          return;
+        }
+        
+        console.log('编辑器元素找到:', editor);
+        console.log('编辑器初始内容:', editor.innerHTML);
+        
+        // 绑定事件监听器
+        bindEventListeners();
+        isEditorInitialized = true;
+        console.log('编辑器初始化成功，isEditorInitialized:', isEditorInitialized);
+        
+        // 处理待处理的消息
+        processPendingMessages();
       }
       
-      console.log('编辑器初始化成功');
-      bindEventListeners();
-    }
-    
-    // 绑定所有事件监听器
-    function bindEventListeners() {
-      // 监听来自扩展的消息
-      window.addEventListener('message', event => {
-        const message = event.data;
+      // 处理待处理的消息
+      function processPendingMessages() {
+        console.log('处理待处理消息，数量:', pendingMessages.length);
+        while (pendingMessages.length > 0) {
+          const message = pendingMessages.shift();
+          console.log('处理待处理消息:', message.type);
+          handleMessage(message);
+        }
+        console.log('待处理消息处理完成');
+      }
+      
+      // 处理消息
+      function handleMessage(message) {
+        console.log('收到消息:', message.type);
         if (message.type === 'html') {
+          console.log('处理 HTML 消息');
+          console.log('HTML 内容长度:', message.data?.length);
           loadHTML(message.data, message.format, message.engine);
         } else if (message.type === 'error') {
+          console.log('处理错误消息:', message.message);
           showNotification(message.message, 'error');
         } else if (message.type === 'success') {
+          console.log('处理成功消息:', message.message);
           showNotification(message.message, 'success');
         }
-      });
-      
-      // 工具栏按钮事件
-      const saveBtn = document.getElementById('save-btn');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-          console.log('保存按钮点击');
-          const content = editor.innerHTML;
-          vscode.postMessage({ type: 'save', content: content });
-        });
       }
       
-      const previewBtn = document.getElementById('preview-btn');
-      if (previewBtn) {
-        previewBtn.addEventListener('click', () => {
-          console.log('预览按钮点击');
-          vscode.postMessage({ type: 'preview' });
-        });
-      }
-      
-      // 格式化按钮
-      const boldBtn = document.getElementById('format-bold');
-      if (boldBtn) {
-        boldBtn.addEventListener('click', () => execCommand('bold'));
-      }
-      
-      const italicBtn = document.getElementById('format-italic');
-      if (italicBtn) {
-        italicBtn.addEventListener('click', () => execCommand('italic'));
-      }
-      
-      const underlineBtn = document.getElementById('format-underline');
-      if (underlineBtn) {
-        underlineBtn.addEventListener('click', () => execCommand('underline'));
-      }
-      
-      const strikethroughBtn = document.getElementById('format-strikethrough');
-      if (strikethroughBtn) {
-        strikethroughBtn.addEventListener('click', () => execCommand('strikeThrough'));
-      }
-      
-      // 标题格式
-      const headingSelect = document.getElementById('format-heading');
-      if (headingSelect) {
-        headingSelect.addEventListener('change', (e) => {
-          const tag = e.target.value;
-          if (tag) {
-            execCommand('formatBlock', tag);
-            e.target.value = '';
-          }
-        });
-      }
-      
-      // 字体大小
-      const fontsizeSelect = document.getElementById('format-fontsize');
-      if (fontsizeSelect) {
-        fontsizeSelect.addEventListener('change', (e) => {
-          const size = e.target.value;
-          if (size) {
-            execCommand('fontSize', size);
-            e.target.value = '';
-          }
-        });
-      }
-      
-      // 对齐按钮
-      const alignLeftBtn = document.getElementById('format-align-left');
-      if (alignLeftBtn) {
-        alignLeftBtn.addEventListener('click', () => execCommand('justifyLeft'));
-      }
-      
-      const alignCenterBtn = document.getElementById('format-align-center');
-      if (alignCenterBtn) {
-        alignCenterBtn.addEventListener('click', () => execCommand('justifyCenter'));
-      }
-      
-      const alignRightBtn = document.getElementById('format-align-right');
-      if (alignRightBtn) {
-        alignRightBtn.addEventListener('click', () => execCommand('justifyRight'));
-      }
-      
-      // 列表按钮
-      const listUlBtn = document.getElementById('format-list-ul');
-      if (listUlBtn) {
-        listUlBtn.addEventListener('click', () => execCommand('insertUnorderedList'));
-      }
-      
-      const listOlBtn = document.getElementById('format-list-ol');
-      if (listOlBtn) {
-        listOlBtn.addEventListener('click', () => execCommand('insertOrderedList'));
-      }
-      
-      // 缩进按钮
-      const indentBtn = document.getElementById('format-indent');
-      if (indentBtn) {
-        indentBtn.addEventListener('click', () => execCommand('indent'));
-      }
-      
-      const outdentBtn = document.getElementById('format-outdent');
-      if (outdentBtn) {
-        outdentBtn.addEventListener('click', () => execCommand('outdent'));
-      }
-      
-      // 插入链接
-      const insertLinkBtn = document.getElementById('insert-link');
-      if (insertLinkBtn) {
-        insertLinkBtn.addEventListener('click', () => {
-          const url = prompt('请输入链接地址:');
-          if (url) {
-            execCommand('createLink', url);
-          }
-        });
-      }
-      
-      // 插入图片
-      const insertImageBtn = document.getElementById('insert-image');
-      if (insertImageBtn) {
-        insertImageBtn.addEventListener('click', () => {
-          // 创建文件选择器
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'image/*';
-          input.multiple = false;
+      // 绑定事件监听器
+      function bindEventListeners() {
+        console.log('=== 开始绑定事件监听器 ===');
+        
+        // 监听来自扩展的消息
+        window.addEventListener('message', event => {
+          console.log('收到窗口消息');
+          const message = event.data;
+          console.log('消息数据:', message);
           
-          input.addEventListener('change', (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-              // 检查文件大小
-              if (file.size > 5 * 1024 * 1024) { // 5MB 限制
-                showNotification('图片文件过大，请选择小于 5MB 的图片', 'error');
-                return;
-              }
-              
-              // 创建文件读取器
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                const imageUrl = event.target?.result as string;
-                if (imageUrl) {
-                  execCommand('insertImage', imageUrl);
-                }
-              };
-              reader.onerror = () => {
-                showNotification('图片读取失败', 'error');
-              };
-              reader.readAsDataURL(file);
-            }
+          if (isEditorInitialized) {
+            console.log('编辑器已初始化，直接处理消息');
+            handleMessage(message);
+          } else {
+            console.log('编辑器未初始化，将消息加入待处理队列');
+            pendingMessages.push(message);
+            console.log('待处理消息数量:', pendingMessages.length);
+          }
+        });
+        
+        console.log('消息监听器绑定完成');
+        
+        // 工具栏按钮事件
+        const saveBtn = document.getElementById('save-btn');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', () => {
+            console.log('保存按钮点击');
+            const content = editor.innerHTML;
+            vscode.postMessage({ type: 'save', content: content });
+          });
+        }
+        
+        const previewBtn = document.getElementById('preview-btn');
+        if (previewBtn) {
+          previewBtn.addEventListener('click', () => {
+            console.log('预览按钮点击');
+            vscode.postMessage({ type: 'preview' });
+          });
+        }
+        
+        console.log('所有事件监听器绑定完成');
+      }
+      
+      // 加载 HTML 内容
+      function loadHTML(htmlContent, format, engine) {
+        currentFormat = format;
+        
+        console.log('=== loadHTML 被调用 ===');
+        console.log('HTML 内容长度:', htmlContent?.length);
+        console.log('编辑器元素:', editor);
+        console.log('编辑器 contenteditable:', editor?.contentEditable);
+        
+        // 显示引擎信息
+        const engineInfo = document.getElementById('engine-info');
+        if (engineInfo && engine === 'javascript') {
+          engineInfo.textContent = '有使用问题联系caixin185';
+        } else if (engineInfo) {
+          engineInfo.textContent = 'LibreOffice 引擎';
+        }
+        
+        // 清理并加载 HTML 内容
+        if (editor) {
+          console.log('编辑器存在，开始设置内容');
+          // 确保编辑器可编辑
+          editor.contentEditable = 'true';
+          editor.removeAttribute('readonly');
+          editor.style.pointerEvents = 'auto';
+          editor.style.userSelect = 'text';
+          
+          console.log('设置编辑器可编辑');
+          console.log('contentEditable:', editor.contentEditable);
+          
+          console.log('开始设置 innerHTML');
+          console.log('innerHTML 前的内容:', editor.innerHTML);
+          
+          // 直接设置内容
+          editor.innerHTML = htmlContent || '<p>开始编辑...</p>';
+          
+          console.log('HTML 内容已设置');
+          console.log('编辑器 innerHTML 长度:', editor.innerHTML.length);
+          console.log('innerHTML 后的内容:', editor.innerHTML.substring(0, 100) + '...');
+          
+          // 计算分页
+          calculatePagination();
+          
+          // 更新字数统计
+          updateWordCount();
+          
+          // 监听编辑事件
+          editor.addEventListener('input', () => {
+            updateWordCount();
           });
           
-          // 打开文件选择器
-          input.click();
-        });
-      }
-      
-      // 插入分页符
-      const insertPageBreakBtn = document.getElementById('insert-page-break');
-      if (insertPageBreakBtn) {
-        insertPageBreakBtn.addEventListener('click', () => {
-          execCommand('insertHorizontalRule');
-          const hr = editor.querySelector('hr:last-child');
-          if (hr) {
-            hr.className = 'page-break';
-          }
-          calculatePagination();
-        });
-      }
-      
-      // 分页控制
-      const pageFirstBtn = document.getElementById('page-first');
-      if (pageFirstBtn) {
-        pageFirstBtn.addEventListener('click', () => {
-          currentPage = 1;
-          updatePageInfo();
-          editor.scrollTop = 0;
-        });
-      }
-      
-      const pagePrevBtn = document.getElementById('page-prev');
-      if (pagePrevBtn) {
-        pagePrevBtn.addEventListener('click', () => {
-          if (currentPage > 1) {
-            currentPage--;
-            updatePageInfo();
-            const pageHeight = 800;
-            editor.scrollTop = (currentPage - 1) * pageHeight;
-          }
-        });
-      }
-      
-      const pageNextBtn = document.getElementById('page-next');
-      if (pageNextBtn) {
-        pageNextBtn.addEventListener('click', () => {
-          if (currentPage < totalPages) {
-            currentPage++;
-            updatePageInfo();
-            const pageHeight = 800;
-            editor.scrollTop = (currentPage - 1) * pageHeight;
-          }
-        });
-      }
-      
-      const pageLastBtn = document.getElementById('page-last');
-      if (pageLastBtn) {
-        pageLastBtn.addEventListener('click', () => {
-          currentPage = totalPages;
-          updatePageInfo();
-          editor.scrollTop = editor.scrollHeight;
-        });
-      }
-      
-      console.log('所有事件监听器绑定完成');
-    }
-    
-    // 页面加载完成后初始化
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initEditor);
-    } else {
-      initEditor();
-    }
-    
-    function loadHTML(htmlContent, format, engine) {
-      currentFormat = format;
-      
-      console.log('loadHTML 被调用');
-      console.log('HTML 内容长度:', htmlContent?.length);
-      console.log('编辑器元素:', editor);
-      console.log('编辑器 contenteditable:', editor?.contentEditable);
-      
-      // 显示引擎信息
-      const engineInfo = document.getElementById('engine-info');
-      if (engineInfo && engine === 'javascript') {
-        engineInfo.textContent = '有使用问题联系caixin185';
-      } else if (engineInfo) {
-        engineInfo.textContent = 'LibreOffice 引擎';
-      }
-      
-      // 清理并加载 HTML 内容
-      if (editor) {
-        // 确保编辑器可编辑
-        editor.contentEditable = 'true';
-        editor.removeAttribute('readonly');
-        editor.style.pointerEvents = 'auto';
-        editor.style.userSelect = 'text';
-        
-        console.log('设置编辑器可编辑');
-        console.log('contentEditable:', editor.contentEditable);
-        
-        editor.innerHTML = htmlContent || '<p>开始编辑...</p>';
-        
-        console.log('HTML 内容已设置');
-        console.log('编辑器 innerHTML 长度:', editor.innerHTML.length);
-        
-        // 计算分页
-        calculatePagination();
-        
-        // 更新字数统计
-        updateWordCount();
-        
-        // 监听编辑事件
-        editor.addEventListener('input', () => {
-          updateWordCount();
-        });
-        
-        // 聚焦编辑器
-        editor.focus();
-        console.log('编辑器已聚焦');
-      } else {
-        console.error('编辑器元素不存在，无法加载内容');
-      }
-    }
-    
-    function calculatePagination() {
-      // 简单的分页计算（基于内容高度）
-      if (editor) {
-        const editorHeight = editor.scrollHeight;
-        const pageHeight = 800; // 每页大约 800px
-        totalPages = Math.ceil(editorHeight / pageHeight) || 1;
-        updatePageInfo();
-      }
-    }
-    
-    function updatePageInfo() {
-      const pageInfo = document.getElementById('page-info');
-      if (pageInfo) {
-        pageInfo.textContent = '第 ' + currentPage + ' 页 / 共 ' + totalPages + ' 页';
-        
-        // 更新按钮状态
-        const pageFirst = document.getElementById('page-first');
-        const pagePrev = document.getElementById('page-prev');
-        const pageNext = document.getElementById('page-next');
-        const pageLast = document.getElementById('page-last');
-        
-        if (pageFirst) pageFirst.disabled = currentPage <= 1;
-        if (pagePrev) pagePrev.disabled = currentPage <= 1;
-        if (pageNext) pageNext.disabled = currentPage >= totalPages;
-        if (pageLast) pageLast.disabled = currentPage >= totalPages;
-      }
-    }
-    
-    function updateWordCount() {
-      if (editor) {
-        const text = editor.innerText || '';
-        const count = text.length;
-        const wordCount = document.getElementById('word-count');
-        if (wordCount) {
-          wordCount.textContent = '字数：' + count;
+          // 聚焦编辑器
+          editor.focus();
+          console.log('编辑器已聚焦');
+        } else {
+          console.error('编辑器元素不存在，无法加载内容');
         }
       }
-    }
-    
-    function showNotification(message, type) {
-      const notification = document.createElement('div');
-      notification.className = 'notification ' + type;
-      notification.textContent = message;
-      notification.style.backgroundColor = type === 'error' 
-        ? 'var(--vscode-inputValidation-errorBackground)' 
-        : 'var(--vscode-inputValidation-infoBackground)';
-      notification.style.border = '1px solid var(--vscode-inputValidation-' + 
-        (type === 'error' ? 'errorBorder' : 'infoBorder') + ')';
-      notification.style.color = type === 'error'
-        ? 'var(--vscode-errorForeground)'
-        : 'var(--vscode-foreground)';
       
-      document.body.appendChild(notification);
+      // 计算分页
+      function calculatePagination() {
+        if (editor) {
+          const editorHeight = editor.scrollHeight;
+          const pageHeight = 800; // 每页大约 800px
+          totalPages = Math.ceil(editorHeight / pageHeight) || 1;
+          updatePageInfo();
+        }
+      }
       
-      setTimeout(() => {
-        notification.remove();
-      }, 3000);
-    }
-    
-    // 格式化命令
-    function execCommand(command, value = null) {
-      if (editor) {
-        document.execCommand(command, false, value);
-        editor.focus();
-        updateWordCount();
+      // 更新页面信息
+      function updatePageInfo() {
+        const pageInfo = document.getElementById('page-info');
+        if (pageInfo) {
+          pageInfo.textContent = '第 ' + currentPage + ' 页 / 共 ' + totalPages + ' 页';
+        }
+      }
+      
+      // 更新字数统计
+      function updateWordCount() {
+        if (editor) {
+          const text = editor.innerText || '';
+          const count = text.length;
+          const wordCount = document.getElementById('word-count');
+          if (wordCount) {
+            wordCount.textContent = '字数：' + count;
+          }
+        }
+      }
+      
+      // 显示通知
+      function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = 'notification ' + type;
+        notification.textContent = message;
+        notification.style.backgroundColor = type === 'error' 
+          ? 'var(--vscode-inputValidation-errorBackground)' 
+          : 'var(--vscode-inputValidation-infoBackground)';
+        notification.style.border = '1px solid var(--vscode-inputValidation-' + 
+          (type === 'error' ? 'errorBorder' : 'infoBorder') + ')';
+        notification.style.color = type === 'error'
+          ? 'var(--vscode-errorForeground)'
+          : 'var(--vscode-foreground)';
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      }
+      
+      // 执行命令
+      function execCommand(command, value = null) {
+        if (editor) {
+          document.execCommand(command, false, value);
+          editor.focus();
+          updateWordCount();
+        }
+      }
+      
+      // 页面加载完成后初始化
+      console.log('检查文档状态:', document.readyState);
+      if (document.readyState === 'loading') {
+        console.log('文档正在加载，添加 DOMContentLoaded 事件监听器');
+        document.addEventListener('DOMContentLoaded', initEditor);
+      } else {
+        console.log('文档已加载，直接初始化编辑器');
+        initEditor();
       }
     }
   </script>

@@ -2,7 +2,7 @@
   "name": "wps-editor",
   "displayName": "WPS Editor",
   "description": "Preview and edit WPS documents (.wps, .et, .dps) in VSCode",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "publisher": "wps-editor",
   "engines": {
     "vscode": "^1.85.0"
