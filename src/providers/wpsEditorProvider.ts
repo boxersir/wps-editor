@@ -58,8 +58,8 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
 
     // 监听保存
     webviewPanel.onDidDispose(() => {
-      // 清理临时文件
-      this.converter.cleanupTempFiles(document.uri.fsPath);
+      // 清理临时文件 - 注意：不传递原始文档路径，只清理临时文件
+      this.converter.cleanupTempFiles();
     });
 
     // 监听来自 webview 的消息
@@ -695,10 +695,38 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
       const insertImageBtn = document.getElementById('insert-image');
       if (insertImageBtn) {
         insertImageBtn.addEventListener('click', () => {
-          const url = prompt('请输入图片地址:');
-          if (url) {
-            execCommand('insertImage', url);
-          }
+          // 创建文件选择器
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.multiple = false;
+          
+          input.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+              // 检查文件大小
+              if (file.size > 5 * 1024 * 1024) { // 5MB 限制
+                showNotification('图片文件过大，请选择小于 5MB 的图片', 'error');
+                return;
+              }
+              
+              // 创建文件读取器
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const imageUrl = event.target?.result as string;
+                if (imageUrl) {
+                  execCommand('insertImage', imageUrl);
+                }
+              };
+              reader.onerror = () => {
+                showNotification('图片读取失败', 'error');
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+          
+          // 打开文件选择器
+          input.click();
         });
       }
       

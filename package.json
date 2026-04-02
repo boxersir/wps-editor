@@ -29,11 +29,11 @@
   "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wps-editor/wps-editor"
+    "url": "https://github.com/boxersir/wps-editor"
   },
-  "homepage": "https://github.com/wps-editor/wps-editor#readme",
+  "homepage": "https://github.com/boxersir/wps-editor#readme",
   "bugs": {
-    "url": "https://github.com/wps-editor/wps-editor/issues",
+    "url": "https://github.com/boxersir/wps-editor/issues",
     "email": "support@wps-editor.com"
   },
   "license": "SEE LICENSE IN LICENSE",
