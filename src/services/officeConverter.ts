@@ -7,9 +7,20 @@ export interface ConversionResult {
   outputBuffer?: Buffer;
   messages?: string[];
   error?: string;
+  engine?: "libreoffice" | "javascript";
 }
 
 export class OfficeConverter {
+  private htmlToDocxLib: any;
+
+  constructor() {
+    try {
+      this.htmlToDocxLib = require("@turbodocx/html-to-docx");
+    } catch (error) {
+      console.warn("HTML to DOCX 库未安装");
+    }
+  }
+
   /**
    * 将 DOCX 转换为 HTML
    */
@@ -152,21 +163,40 @@ export class OfficeConverter {
   }
 
   /**
+   * 将 HTML 转换为 DOCX
+   */
+  async htmlToDocx(html: string): Promise<ConversionResult> {
+    try {
+      if (!this.htmlToDocxLib) {
+        return {
+          success: false,
+          error: "HTML to DOCX 库未安装",
+          engine: "javascript",
+        };
+      }
+
+      const docx = await this.htmlToDocxLib(html);
+
+      return {
+        success: true,
+        outputBuffer: Buffer.from(docx),
+        messages: [],
+        engine: "javascript",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || "HTML to DOCX conversion failed",
+        engine: "javascript",
+      };
+    }
+  }
+
+  /**
    * 检测是否为支持的 Office 格式
    */
   static isSupportedOfficeFormat(extension: string): boolean {
     const supportedFormats = [".docx", ".xlsx"];
     return supportedFormats.includes(extension.toLowerCase());
-  }
-
-  /**
-   * 获取格式描述
-   */
-  static getFormatDescription(extension: string): string {
-    const descriptions: { [key: string]: string } = {
-      ".docx": "Microsoft Word 文档 (2007+)",
-      ".xlsx": "Microsoft Excel 工作表 (2007+)",
-    };
-    return descriptions[extension.toLowerCase()] || "未知格式";
   }
 }

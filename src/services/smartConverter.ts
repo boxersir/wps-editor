@@ -281,7 +281,32 @@ export class SmartConverter {
     outputPath: string,
     targetFormat: DocumentFormat,
   ): Promise<ConversionResult> {
-    // 目前仍需要 LibreOffice 进行反向转换
+    // 对于 .docx 格式，使用 JavaScript 库
+    if (targetFormat === DocumentFormat.DOCX) {
+      try {
+        const htmlContent = fs.readFileSync(htmlPath, "utf-8");
+        const result = await this.officeConverter.htmlToDocx(htmlContent);
+
+        if (result.success && result.outputBuffer) {
+          fs.writeFileSync(outputPath, new Uint8Array(result.outputBuffer));
+          return {
+            success: true,
+            outputPath,
+            engine: "javascript",
+          };
+        }
+
+        return result;
+      } catch (error: any) {
+        return {
+          success: false,
+          error: `HTML to DOCX conversion failed: ${error.message}`,
+          engine: "javascript",
+        };
+      }
+    }
+
+    // 其他格式使用 LibreOffice
     return await this.convertWithLibreOffice(
       htmlPath,
       targetFormat,

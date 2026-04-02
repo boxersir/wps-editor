@@ -68,6 +68,28 @@
           }
         ],
         "priority": "default"
+      },
+      {
+        "viewType": "wpsEditor.editor",
+        "displayName": "WPS Editor (Editor)",
+        "selector": [
+          {
+            "filenamePattern": "*.wps"
+          },
+          {
+            "filenamePattern": "*.et"
+          },
+          {
+            "filenamePattern": "*.dps"
+          },
+          {
+            "filenamePattern": "*.doc"
+          },
+          {
+            "filenamePattern": "*.docx"
+          }
+        ],
+        "priority": "option"
       }
     ],
     "commands": [
@@ -118,6 +140,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@turbodocx/html-to-docx": "^1.20.1",
     "axios": "^1.14.0",
     "exceljs": "^4.4.0",
     "libreoffice-convert": "^1.8.1",

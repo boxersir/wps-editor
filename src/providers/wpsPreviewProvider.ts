@@ -61,6 +61,20 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
 
     // 加载文档
     await this.loadDocument(document.uri, webviewPanel.webview);
+
+    // 监听来自 webview 的消息
+    webviewPanel.webview.onDidReceiveMessage(async (message) => {
+      switch (message.type) {
+        case "edit":
+          // 切换到编辑器模式
+          await vscode.commands.executeCommand(
+            "vscode.openWith",
+            document.uri,
+            "wpsEditor.editor",
+          );
+          break;
+      }
+    });
   }
 
   private async loadDocument(
@@ -69,6 +83,8 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
   ): Promise<void> {
     const filePath = uri.fsPath;
     const format = this.converter.detectFormat(filePath);
+
+    console.log("预览加载文档:", filePath, "格式:", format);
 
     if (!this.converter.isWpsFormat(format)) {
       webview.postMessage({
@@ -81,7 +97,10 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
     try {
       // 对于 Office Open XML 格式（.docx, .xlsx），直接转换为 HTML
       if (format === ".docx" || format === ".xlsx") {
+        console.log("使用 HTML 转换:", format);
         const result = await this.converter.convertToHTML(filePath);
+
+        console.log("HTML 转换结果:", result);
 
         if (result.success && result.output) {
           webview.postMessage({
@@ -96,6 +115,7 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
           });
         }
       } else {
+        console.log("使用 PDF 转换:", format);
         // 其他格式转换为 PDF
         const result = await this.converter.convertToPDF(filePath);
 
@@ -114,6 +134,7 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
         }
       }
     } catch (error: any) {
+      console.error("加载文档错误:", error);
       webview.postMessage({
         type: "error",
         message: error.message || "转换失败",
@@ -339,12 +360,21 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
   
   <script>
     const pdfJsWorkerSrc = '${pdfJsWorkerCdn}';
+    let pdfjsLib = null;
     
     // 动态加载 PDF.js
     const script = document.createElement('script');
     script.src = '${pdfJsCdn}';
     script.onload = () => {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfJsWorkerSrc;
+      pdfjsLib = window.pdfjsLib;
+      if (pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfJsWorkerSrc;
+      }
+      initPDFViewer();
+    };
+    script.onerror = () => {
+      console.error('PDF.js 加载失败');
+      // PDF.js 加载失败，但仍然可以显示 HTML
       initPDFViewer();
     };
     document.head.appendChild(script);
@@ -397,11 +427,21 @@ export class WpsPreviewProvider implements vscode.CustomEditorProvider {
     function showPDFViewer() {
       document.getElementById('pdf-container').style.display = 'flex';
       document.getElementById('html-container').style.display = 'none';
+      
+      // 启用 PDF 导航按钮
+      document.getElementById('prev-page').disabled = false;
+      document.getElementById('next-page').disabled = false;
+      document.getElementById('zoom-level').disabled = false;
     }
     
     function showHTMLViewer(htmlContent, engine) {
       document.getElementById('pdf-container').style.display = 'none';
       document.getElementById('html-container').style.display = 'block';
+      
+      // 禁用 PDF 导航按钮（HTML 模式不需要）
+      document.getElementById('prev-page').disabled = true;
+      document.getElementById('next-page').disabled = true;
+      document.getElementById('zoom-level').disabled = true;
       
       const htmlContentDiv = document.getElementById('html-content');
       htmlContentDiv.innerHTML = htmlContent;
