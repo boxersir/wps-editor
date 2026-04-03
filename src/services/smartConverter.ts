@@ -1,20 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as libreoffice from "libreoffice-convert";
+import * as os from "os";
 import { OfficeConverter } from "./officeConverter";
-
-// 包装 libreoffice convert 函数以支持 Promise
-function convertAsync(document: Buffer, format: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    libreoffice.convert(document, format, undefined, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-}
 
 export enum DocumentFormat {
   WPS = ".wps",
@@ -113,6 +100,7 @@ export class SmartConverter {
 
       switch (format) {
         case DocumentFormat.DOCX:
+        case DocumentFormat.DOC:
           result = await this.officeConverter.docxToHtml(buffer);
           break;
         case DocumentFormat.XLSX:
@@ -233,11 +221,7 @@ export class SmartConverter {
    */
   getTempPath(baseName: string, extension?: string): string {
     const ext = extension || "";
-    const tempDir = path.join(
-      require("os").tmpdir(),
-      "wps-editor",
-      baseName + ext,
-    );
+    const tempDir = path.join(os.tmpdir(), "wps-editor", baseName + ext);
     if (!fs.existsSync(path.dirname(tempDir))) {
       fs.mkdirSync(path.dirname(tempDir), { recursive: true });
     }

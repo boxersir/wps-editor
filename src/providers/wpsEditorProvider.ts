@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { SmartConverter } from "../services/smartConverter";
 
 export class WpsEditorProvider implements vscode.CustomEditorProvider {
@@ -87,17 +88,13 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
     const filePath = uri.fsPath;
     const format = this.converter.detectFormat(filePath);
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("加载文档:", filePath, "格式:", format);
-    }
+    console.log("加载文档:", filePath, "格式:", format);
 
     try {
       // 转换为 HTML 用于编辑
       const result = await this.converter.convertToHTML(filePath);
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("转换结果:", result);
-      }
+      console.log("转换结果:", result);
 
       if (result.success && result.output) {
         console.log("发送 HTML 消息到 Webview");
@@ -123,9 +120,7 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
         });
       }
     } catch (error: any) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("加载文档出错:", error);
-      }
+      console.error("加载文档出错:", error);
       console.log("发送错误消息到 Webview (异常)");
       webview.postMessage({
         type: "error",
@@ -152,7 +147,6 @@ export class WpsEditorProvider implements vscode.CustomEditorProvider {
 
     // 创建临时 HTML 文件
     const tempHtmlPath = this.converter.getTempPath(filePath, ".html");
-    const fs = require("fs");
     fs.writeFileSync(tempHtmlPath, htmlContent);
 
     // 转换回原格式

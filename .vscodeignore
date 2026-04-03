@@ -10,3 +10,4 @@ node_modules/**
 !/*/tsconfig.json
 **/package.json.lock
 **/*.tsbuildinfo
+webpack.config.js

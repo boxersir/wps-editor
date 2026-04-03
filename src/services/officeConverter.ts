@@ -1,5 +1,6 @@
 import * as mammoth from "mammoth";
 import ExcelJS from "exceljs";
+import htmlToDocxLib from "@turbodocx/html-to-docx";
 
 export interface ConversionResult {
   success: boolean;
@@ -11,14 +12,8 @@ export interface ConversionResult {
 }
 
 export class OfficeConverter {
-  private htmlToDocxLib: any;
-
   constructor() {
-    try {
-      this.htmlToDocxLib = require("@turbodocx/html-to-docx");
-    } catch (error) {
-      console.warn("HTML to DOCX 库未安装");
-    }
+    // htmlToDocxLib 已经通过 import 导入
   }
 
   /**
@@ -167,19 +162,23 @@ export class OfficeConverter {
    */
   async htmlToDocx(html: string): Promise<ConversionResult> {
     try {
-      if (!this.htmlToDocxLib) {
-        return {
-          success: false,
-          error: "HTML to DOCX 库未安装",
-          engine: "javascript",
-        };
-      }
+      const docx = await htmlToDocxLib(html);
 
-      const docx = await this.htmlToDocxLib(html);
+      // 处理返回值，可能是 Buffer、ArrayBuffer 或 Blob
+      let buffer: Buffer;
+      if (Buffer.isBuffer(docx)) {
+        buffer = docx;
+      } else if (docx instanceof ArrayBuffer) {
+        buffer = Buffer.from(docx);
+      } else if (docx instanceof Blob) {
+        buffer = Buffer.from(await docx.arrayBuffer());
+      } else {
+        throw new Error("Unexpected return type from htmlToDocx");
+      }
 
       return {
         success: true,
-        outputBuffer: Buffer.from(docx),
+        outputBuffer: buffer,
         messages: [],
         engine: "javascript",
       };
@@ -196,7 +195,7 @@ export class OfficeConverter {
    * 检测是否为支持的 Office 格式
    */
   static isSupportedOfficeFormat(extension: string): boolean {
-    const supportedFormats = [".docx", ".xlsx"];
+    const supportedFormats = [".docx", ".doc", ".xlsx"];
     return supportedFormats.includes(extension.toLowerCase());
   }
 }
